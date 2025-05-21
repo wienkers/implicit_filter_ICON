@@ -669,7 +669,7 @@ class JaxFilter(Filter):
                 data = ux.values
                 filtered_x = self.compute_on_cells(n, k, data)
             
-            da_filtered_x = xr.DataArray(filtered_x, coords=coords, dims=dims)
+            da_filtered_x = xr.DataArray(filtered_x, coords=coords, dims=dims).chunk(ux.chunks)
             
             # Fix DataArray
             da_filtered_x.attrs = ux.attrs

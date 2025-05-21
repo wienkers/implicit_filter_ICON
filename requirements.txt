@@ -3,11 +3,11 @@ certifi
 cftime
 contourpy
 cycler
-cupy==12.3.0
+cupy
 fastrlock
 fonttools
-jax==0.4.25
-jaxlib==0.4.25
+jax
+jaxlib
 kiwisolver
 matplotlib
 munkres
