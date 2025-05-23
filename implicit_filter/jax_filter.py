@@ -105,7 +105,7 @@ class JaxFilter(Filter):
         # pre = csc_matrix((b, (np.arange(self._n2d), np.arange(self._n2d))), shape=(self._n2d, self._n2d))
         ttw = ttu - Smat @ ttu  # Work with perturbations
 
-        tts, code = cg(Smat, ttw, tol=tol, maxiter=maxiter)
+        tts, code = cg(Smat, ttw, rtol=tol, maxiter=maxiter)
         if code != 0:
             raise SolverNotConvergedError("Solver has not converged without metric terms",
                                           [f"output code with code: {code}"])
@@ -119,7 +119,7 @@ class JaxFilter(Filter):
         output: List[np.ndarray] = list()
         for ttu in data:
             ttw = ttu - Smat @ ttu  # Work with perturbations
-            tts, code = cg(Smat, ttw, tol=tol, maxiter=maxiter)
+            tts, code = cg(Smat, ttw, rtol=tol, maxiter=maxiter)
 
             if code != 0:
                 raise SolverNotConvergedError("Solver has not converged without metric terms",
@@ -136,7 +136,7 @@ class JaxFilter(Filter):
             Smat1 = csc_matrix((self._ss * (1.0 / jnp.square(kl_i)), (self._ii, self._jj)), shape=(self._n2d, self._n2d))
             Smat = identity(self._n2d) + 0.5 * (Smat1 ** n)
             ttw = ttu - Smat @ ttu  # Work with perturbations
-            tts, code = cg(Smat, ttw, tol=tol, maxiter=maxiter)
+            tts, code = cg(Smat, ttw, rtol=tol, maxiter=maxiter)
             
             if code != 0:
                 raise SolverNotConvergedError("Solver has not converged without metric terms",
@@ -153,7 +153,7 @@ class JaxFilter(Filter):
 
         ttw = ttuv - Smat @ ttuv  # Work with perturbations
 
-        tts, code = cg(Smat, ttw, tol=tol, maxiter=maxiter)
+        tts, code = cg(Smat, ttw, rtol=tol, maxiter=maxiter)
         if code != 0:
             raise SolverNotConvergedError("Solver has not converged with metric terms",
                                           [f"output code with code: {code}"])
@@ -172,7 +172,7 @@ class JaxFilter(Filter):
             ttuv = jnp.concatenate((ux[i], vy[i]))
             ttw = ttuv - Smat @ ttuv  # Work with perturbations
 
-            tts, code = cg(Smat, ttw, tol=tol, maxiter=maxiter)
+            tts, code = cg(Smat, ttw, rtol=tol, maxiter=maxiter)
             if code != 0:
                 raise SolverNotConvergedError("Solver has not converged with metric terms",
                                               [f"output code with code: {code}"])
@@ -196,7 +196,7 @@ class JaxFilter(Filter):
             
             ttw = ttuv - Smat @ ttuv  # Work with perturbations
 
-            tts, code = cg(Smat, ttw, tol=tol, maxiter=maxiter)
+            tts, code = cg(Smat, ttw, rtol=tol, maxiter=maxiter)
             if code != 0:
                 raise SolverNotConvergedError("Solver has not converged with metric terms",
                                               [f"output code with code: {code}"])
@@ -651,6 +651,7 @@ class JaxFilter(Filter):
                 data = ux.values  # Ensure iterated (time) dimension is first
                 filtered_x = self.many_compute_on_cells(n, k, data) # Returns list of np.array...
                 filtered_x = np.array(filtered_x)
+                chunks = ux.chunks
             elif 'depth' in dims and ux.depth.shape[0] > 1:  ## N.B.: If you use the same filter file, then BCs will not be enforced at the varying depths due to bathymetry
                 # Cycle through each depth level in parallel
                 ux = ux.transpose('depth',...)
@@ -664,12 +665,16 @@ class JaxFilter(Filter):
                 data = ux.values
                 filtered_x = self.spectra_compute_on_cells(n, k[::-1], data) # Returns list of np.array...
                 filtered_x = filtered_x[::-1]   #np.array(filtered_x)
+                chunks = {'k': 1}
             else:
                 # Just the one timestep...
                 data = ux.values
                 filtered_x = self.compute_on_cells(n, k, data)
             
-            da_filtered_x = xr.DataArray(filtered_x, coords=coords, dims=dims).chunk(ux.chunks)
+            da_filtered_x = xr.DataArray(filtered_x, coords=coords, dims=dims)
+            
+            if chunks:
+                da_filtered_x = da_filtered_x.chunk(chunks)
             
             # Fix DataArray
             da_filtered_x.attrs = ux.attrs
